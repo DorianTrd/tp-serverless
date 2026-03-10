@@ -6,25 +6,25 @@
 ┌─────────────────────────────────────────────────────────────────┐
 │                         PARTIE AZURE                            │
 │                                                                 │
-│  curl POST /api/http-trigger                                    │
+│  curl POST /api/upload                                          │
 │         │                                                       │
 │         ▼                                                       │
-│  ┌─────────────────┐    écrit blob    ┌──────────────────┐     │
-│  │  HTTP Trigger   │ ──────────────► │  Blob Storage    │     │
-│  │  (Azure Fn)     │                 │  (Azurite)       │     │
-│  └─────────────────┘                 └────────┬─────────┘     │
-│                                               │ blob créé      │
-│                                               ▼                │
-│                                      ┌──────────────────┐     │
-│                                      │  Blob Trigger    │     │
-│                                      │  (Azure Fn)      │     │
-│                                      └────────┬─────────┘     │
-│                                               │ écrit          │
-│                                               ▼                │
-│                                      ┌──────────────────┐     │
-│                                      │  Table Storage   │     │
-│                                      │  (Azurite)       │     │
-│                                      └──────────────────┘     │
+│  ┌─────────────────┐    écrit blob    ┌──────────────────┐      │
+│  │  HTTP Trigger   │ ──────────────► │  Blob Storage     │      │
+│  │  (Azure Fn)     │                 │  (Azurite)        │      │
+│  └─────────────────┘                 └────────┬─────────┘       │
+│                                               │ blob créé       │
+│                                               ▼                 │
+│                                      ┌──────────────────┐       │
+│                                      │  Blob Trigger    │       │
+│                                      │  (Azure Fn)      │       │
+│                                      └────────┬─────────┘       │
+│                                               │ écrit           │
+│                                               ▼                 │
+│                                      ┌──────────────────┐       │
+│                                      │  Table Storage   │       │
+│                                      │  (Azurite)       │       │
+│                                      └──────────────────┘       │
 └─────────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────────┐
@@ -60,15 +60,15 @@
 
 | Fonction | Trigger | Rôle |
 |---|---|---|
-| `http-trigger` | HTTP POST | Reçoit un JSON `{name, content}` et écrit un blob dans Azurite |
-| `blob-trigger` | Blob Storage | Détecte tout nouveau blob dans `tp-container`, lit son contenu, écrit un enregistrement dans Table Storage |
+| `http-trigger` | HTTP POST `/api/upload` | Reçoit un JSON `{name, content}` et écrit un blob dans Azurite |
+| `blob-trigger` | Blob Storage (`uploads/{name}`) | Détecte tout nouveau blob dans le container `uploads`, lit son contenu, écrit un enregistrement dans Table Storage |
 
 ### AWS
 
 | Fonction | Trigger | Rôle |
 |---|---|---|
 | `upload-function` | Invocation CLI | Reçoit un event JSON `{name, content}` et écrit un objet dans le bucket S3 LocalStack |
-| `process-function` | S3 Event (`ObjectCreated`) | Détectée automatiquement à l'upload S3, lit l'objet, écrit un enregistrement dans DynamoDB |
+| `process-function` | S3 Event (`s3:ObjectCreated:*`) | Déclenchée à l'upload S3, lit l'objet, écrit un enregistrement dans DynamoDB |
 
 ---
 
@@ -83,8 +83,11 @@ node --version
 # Azure Functions Core Tools
 npm install -g azure-functions-core-tools@4 --unsafe-perm true
 
-# AWS CLI
-pip install awscli
+# Azurite
+npm install -g azurite
+
+# AWS CLI v2
+# Télécharger : https://awscli.amazonaws.com/AWSCLIV2.msi
 
 # Docker (pour LocalStack)
 docker --version
@@ -94,13 +97,21 @@ docker --version
 
 ### Partie Azure
 
-**1. Démarrer Azurite**
+**1. Démarrer Azurite** (depuis la racine du projet)
 
 Dans VS Code : `Ctrl+Shift+P` → `Azurite: Start`  
 Ou en ligne de commande :
 ```bash
-npx azurite --silent --location ./azurite-data --debug ./azurite-debug.log
+azurite --location ./azurite-data --skipApiVersionCheck --loose
 ```
+
+Laisser ce terminal ouvert. Azurite doit afficher :
+```
+Azurite Blob service is successfully listening at http://127.0.0.1:10000
+Azurite Table service is successfully listening at http://127.0.0.1:10002
+```
+
+> ⚠️ **Note** : utiliser `@azure/storage-blob@12.13.0` — les versions récentes (12.17+) sont incompatibles avec Azurite local.
 
 **2. Installer les dépendances et lancer Azure Functions**
 
@@ -110,13 +121,25 @@ npm install
 func start
 ```
 
+Les deux fonctions doivent apparaître :
+```
+Functions:
+    http-trigger: [POST] http://localhost:7071/api/upload
+    blob-trigger: blobTrigger
+```
+
 **3. Tester le flux complet**
 
 ```bash
-# Déclencher l'HTTP Trigger (crée un blob dans Azurite)
-curl -X POST http://localhost:7071/api/http-trigger \
+# Linux / macOS
+curl -X POST http://localhost:7071/api/upload \
   -H "Content-Type: application/json" \
   -d '{"name": "test.txt", "content": "Hello Azure Serverless!"}'
+
+# Windows PowerShell
+Invoke-RestMethod -Method Post -Uri "http://localhost:7071/api/upload" `
+  -ContentType "application/json" `
+  -Body '{"name": "test.txt", "content": "Hello Azure Serverless!"}'
 ```
 
 Résultat attendu dans les logs `func start` :
@@ -125,6 +148,8 @@ Résultat attendu dans les logs `func start` :
 ![alt text](/images/image-1.png)
 
 ![alt text](/images/image-2.png)
+
+---
 
 ### Partie AWS
 
@@ -145,45 +170,81 @@ aws configure set aws_secret_access_key test
 aws configure set region eu-west-1
 ```
 
-**3. Initialiser l'infrastructure et déployer les Lambdas**
-
+Vérifier :
 ```bash
-cd aws/scripts/
-chmod +x setup.sh
-./setup.sh
+aws --endpoint-url=http://localhost:4566 s3 ls
+# Doit retourner une liste vide (pas d'erreur)
 ```
 
-**4. Tester le flux complet**
+**3. Installer les dépendances et déployer les Lambdas**
 
 ```bash
-# Déclencher upload-function
+npm install
+node scripts/deploy.js
+```
+
+**4. Configurer le trigger S3 manuellement**
+
+> ⚠️ Le script de déploiement peut échouer sur la configuration du trigger. Dans ce cas, lancer cette commande manuellement :
+
+```bash
+# Linux / macOS
+aws --endpoint-url=http://localhost:4566 s3api put-bucket-notification-configuration \
+  --bucket mon-bucket-tp \
+  --notification-configuration '{
+    "LambdaFunctionConfigurations": [{
+      "LambdaFunctionArn": "arn:aws:lambda:eu-west-1:000000000000:function:process-function",
+      "Events": ["s3:ObjectCreated:*"]
+    }]
+  }'
+
+# Windows PowerShell
+aws --endpoint-url=http://localhost:4566 s3api put-bucket-notification-configuration --bucket mon-bucket-tp --notification-configuration '{\"LambdaFunctionConfigurations\":[{\"LambdaFunctionArn\":\"arn:aws:lambda:eu-west-1:000000000000:function:process-function\",\"Events\":[\"s3:ObjectCreated:*\"]}]}'
+```
+
+**5. Tester le flux complet**
+
+```bash
+# Invoquer upload-function (payload en base64)
+# {"name":"test.txt","content":"Hello serverless"}
 aws --endpoint-url=http://localhost:4566 lambda invoke \
   --function-name upload-function \
-  --payload '{"name": "test.txt", "content": "Hello AWS Serverless!"}' \
+  --payload eyJuYW1lIjoidGVzdC50eHQiLCJjb250ZW50IjoiSGVsbG8gc2VydmVybGVzcyJ9 \
   output.json
+
+cat output.json
 ```
- ![alt text](/images/image-5.png)
 
-  ![alt text](/images/image-4.png)
+![alt text](/images/image-5.png)
 
- 
+![alt text](/images/image-4.png)
 
 ```bash
-cat output.json
-
-# Vérifier l'objet dans S3
+# Vérifier le fichier dans S3
 aws --endpoint-url=http://localhost:4566 s3 ls s3://mon-bucket-tp/
 ```
+
 ![alt text](/images/image-6.png)
 
 ![alt text](/images/image-7.png)
 
 ```bash
-# Vérifier l'enregistrement DynamoDB
+# Invoquer process-function manuellement si le trigger automatique ne se déclenche pas
+# (limitation connue de LocalStack version gratuite)
+aws --endpoint-url=http://localhost:4566 lambda invoke \
+  --function-name process-function \
+  --payload eyJSZWNvcmRzIjpbeyJzMyI6eyJidWNrZXQiOnsibmFtZSI6Im1vbi1idWNrZXQtdHAifSwib2JqZWN0Ijp7ImtleSI6InRlc3QudHh0Iiwic2l6ZSI6MTZ9fX1dfQ== \
+  output2.json
+
+cat output2.json
+```
+
+```bash
+# Vérifier l'enregistrement dans DynamoDB
 aws --endpoint-url=http://localhost:4566 dynamodb scan --table-name tp-results
 ```
-![alt text](/images/image-8.png)
 
+![alt text](/images/image-8.png)
 
 ---
 
@@ -210,7 +271,7 @@ tp-serverless/
 │   │   ├── index.js          # Logique S3 Trigger → DynamoDB
 │   │   └── package.json
 │   ├── scripts/
-│   │   └── setup.sh          # Setup complet LocalStack
+│   │   └── deploy.js         # Script de déploiement LocalStack
 │   └── docker-compose.yml    # LocalStack
 │
 └── README.md
@@ -227,7 +288,7 @@ tp-serverless/
 ```json
 {
   "type": "blobTrigger",
-  "path": "tp-container/{name}",
+  "path": "uploads/{name}",
   "connection": "AzureWebJobsStorage"
 }
 ```
@@ -256,7 +317,7 @@ tp-serverless/
 
 **Azure** privilégie une approche **déclarative** : les bindings dans `function.json` éliminent presque tout le code de plomberie (connexion au storage, écoute des événements). Le code fonctionnel se résume à la logique métier.
 
-**AWS** est plus **impératif** : il faut instancier explicitement les clients SDK (S3Client, DynamoDBClient), gérer les configurations d'endpoint, parser l'event S3 manuellement. La quantité de boilerplate est sensiblement plus élevée.
+**AWS** est plus **impératif** : il faut instancier explicitement les clients SDK (`S3Client`, `DynamoDBClient`), gérer les configurations d'endpoint, parser l'event S3 manuellement. La quantité de boilerplate est sensiblement plus élevée.
 
 👉 Pour une application simple, Azure réduit le code de 30 à 40% par rapport à AWS.
 
@@ -266,9 +327,9 @@ tp-serverless/
 
 | Critère | Azurite (Azure) | LocalStack (AWS) |
 |---|---|---|
-| Installation | Extension VS Code (1 clic) | Docker Compose requis |
+| Installation | `npm install -g azurite` | Docker Compose requis |
 | Fidélité | Très haute pour Blob/Table/Queue | Haute pour S3/DynamoDB, partielle pour Lambda |
-| Limitations | Aucune notable pour ce TP | Triggers S3→Lambda parfois instables en version gratuite |
+| Limitations | Incompatibilités de versions SDK | Triggers S3→Lambda instables en version gratuite |
 | Stabilité | Très stable | Dépend de la version et du plan |
 
 **Azurite est plus simple à utiliser** mais LocalStack est plus complet (émule une vraie région AWS avec ses nombreux services).
