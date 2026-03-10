@@ -120,12 +120,11 @@ curl -X POST http://localhost:7071/api/http-trigger \
 ```
 
 Résultat attendu dans les logs `func start` :
-- `📥 HTTP Trigger déclenché`
-- `✅ Blob créé : test.txt`
-- `📦 Blob Trigger déclenché` (quelques secondes après)
-- `✅ Enregistrement écrit dans Table Storage`
+![alt text](/images/image.png)
 
----
+![alt text](/images/image-1.png)
+
+![alt text](/images/image-2.png)
 
 ### Partie AWS
 
@@ -135,6 +134,8 @@ Résultat attendu dans les logs `func start` :
 cd aws/
 docker-compose up -d
 ```
+
+![alt text](/images/image-3.png)
 
 **2. Configurer AWS CLI pour LocalStack**
 
@@ -160,15 +161,29 @@ aws --endpoint-url=http://localhost:4566 lambda invoke \
   --function-name upload-function \
   --payload '{"name": "test.txt", "content": "Hello AWS Serverless!"}' \
   output.json
+```
+ ![alt text](/images/image-5.png)
 
+  ![alt text](/images/image-4.png)
+
+ 
+
+```bash
 cat output.json
 
 # Vérifier l'objet dans S3
 aws --endpoint-url=http://localhost:4566 s3 ls s3://mon-bucket-tp/
+```
+![alt text](/images/image-6.png)
 
+![alt text](/images/image-7.png)
+
+```bash
 # Vérifier l'enregistrement DynamoDB
 aws --endpoint-url=http://localhost:4566 dynamodb scan --table-name tp-results
 ```
+![alt text](/images/image-8.png)
+
 
 ---
 
@@ -227,7 +242,7 @@ tp-serverless/
 
 | Critère | Azure | AWS |
 |---|---|---|
-| Temps de mise en place | ~15 min (extension VS Code + `func start`) | ~30 min (Docker, LocalStack, CLI, scripts) |
+| Temps de mise en place | ~50 min (extension VS Code + `func start`) | ~30 min (Docker, LocalStack, CLI, scripts) |
 | Outillage local | Excellent (Azurite intégré VS Code, logs live) | Correct (LocalStack via Docker, logs moins visibles) |
 | Debug | `func start` affiche tout en temps réel | Logs via `docker logs localstack` ou CloudWatch local |
 | Clarté des erreurs | Messages clairs et contextuels | Parfois cryptiques (erreurs Lambda emballées) |

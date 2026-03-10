@@ -1,0 +1,11 @@
+{
+  "name": "tp-serverless-aws",
+  "version": "1.0.0",
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.450.0",
+    "@aws-sdk/client-dynamodb": "^3.450.0",
+    "@aws-sdk/lib-dynamodb": "^3.450.0",
+    "@aws-sdk/client-lambda": "^3.450.0",
+    "adm-zip": "^0.5.10"
+  }
+}

@@ -7,11 +7,11 @@ services:
     ports:
       - "4566:4566"
     environment:
-      - SERVICES=s3,lambda,dynamodb
+      - SERVICES=s3,dynamodb,lambda,iam,logs,cloudwatch
       - DEFAULT_REGION=eu-west-1
+      - AWS_DEFAULT_REGION=eu-west-1
+      - LAMBDA_EXECUTOR=local
       - DEBUG=1
-      - LAMBDA_EXECUTOR=docker
-      - DOCKER_HOST=unix:///var/run/docker.sock
     volumes:
-      - "/var/run/docker.sock:/var/run/docker.sock"
-      - "./localstack-data:/var/lib/localstack"
+      - ./localstack-data:/var/lib/localstack
+      - /var/run/docker.sock:/var/run/docker.sock

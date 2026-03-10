@@ -3,7 +3,7 @@ const { S3Client, PutObjectCommand } = require("@aws-sdk/client-s3");
 // Configuration pour LocalStack
 const s3Client = new S3Client({
   region: "eu-west-1",
-  endpoint: "http://localhost:4566",
+  endpoint: "http://host.docker.internal:4566",
   forcePathStyle: true, // Requis pour LocalStack
   credentials: {
     accessKeyId: "test",

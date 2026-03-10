@@ -5,7 +5,7 @@ const { randomUUID } = require("crypto");
 // Config LocalStack
 const clientConfig = {
   region: "eu-west-1",
-  endpoint: "http://localhost:4566",
+  endpoint: "http://host.docker.internal:4566",
   forcePathStyle: true,
   credentials: {
     accessKeyId: "test",
