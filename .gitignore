@@ -1,3 +1,31 @@
+# Ouvre le .gitignore et remplace tout le contenu
+cat > .gitignore << 'EOF'
 node_modules/
 *.zip
 .env
+
+# Azurite
+__azurite_db_blob__.json
+__azurite_db_blob_extent__.json
+__azurite_db_queue__.json
+__azurite_db_queue_extent__.json
+__azurite_db_table__.json
+__blobstorage__/
+azurite-data/
+blob-trigger-disabled/
+
+# Images locales
+image.png
+
+# Azure Functions
+local.settings.json
+
+# LocalStack
+aws/localstack-data/
+aws/*.zip
+output.json
+EOF
+
+git add .gitignore
+git commit -m "chore: update gitignore"
+git push

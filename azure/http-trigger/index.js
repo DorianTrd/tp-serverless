@@ -1,46 +1,30 @@
 const { BlobServiceClient } = require("@azure/storage-blob");
 
-const AZURITE_CONNECTION_STRING =
-  "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OPxqDhKDOWMNd9aZ1MroKgMbFhCQRABEhChVIeIvS5rMj17b2eqzaA==;BlobEndpoint=http://127.0.0.1:10000/devstoreaccount1;";
-const CONTAINER_NAME = "tp-container";
+const AZURITE_CONNECTION_STRING = "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KwVeQ/2mfAQ==;BlobEndpoint=http://127.0.0.1:10000/devstoreaccount1;QueueEndpoint=http://127.0.0.1:10001/devstoreaccount1;TableEndpoint=http://127.0.0.1:10002/devstoreaccount1";
 
 module.exports = async function (context, req) {
-  context.log("📥 HTTP Trigger déclenché");
+  context.log("HTTP Trigger declenche");
+  const name = req.body && req.body.name;
+  const content = req.body && req.body.content;
 
-  const name = req.body?.name || `file-${Date.now()}.txt`;
-  const content = req.body?.content || "Contenu par défaut";
+  if (!name || !content) {
+    context.res = { status: 400, body: { error: "name et content requis" } };
+    return;
+  }
 
   try {
     const blobServiceClient = BlobServiceClient.fromConnectionString(
-      AZURITE_CONNECTION_STRING
-    );
-
-    // Créer le container s'il n'existe pas
-    const containerClient = blobServiceClient.getContainerClient(CONTAINER_NAME);
+            "UseDevelopmentStorage=true"
+        ); const containerClient = blobServiceClient.getContainerClient("uploads");
     await containerClient.createIfNotExists();
-
-    // Upload du blob
-    const blockBlobClient = containerClient.getBlockBlobClient(name);
-    const buffer = Buffer.from(content, "utf-8");
-    await blockBlobClient.upload(buffer, buffer.length, {
-      blobHTTPHeaders: { blobContentType: "text/plain" },
-    });
-
-    context.log(`✅ Blob créé : ${name}`);
-
-    context.res = {
-      status: 200,
-      body: {
-        message: `Fichier '${name}' uploadé avec succès dans Blob Storage.`,
-        blobName: name,
-        size: buffer.length,
-      },
-    };
+    const blobName = Date.now() + "-" + name;
+    const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+    const data = Buffer.from(content, "utf-8");
+    await blockBlobClient.upload(data, data.length);
+    context.log("Blob uploade : " + blobName);
+    context.res = { status: 200, body: { message: "OK", blobName } };
   } catch (err) {
-    context.log.error("❌ Erreur upload blob :", err.message);
-    context.res = {
-      status: 500,
-      body: { error: err.message },
-    };
+    context.log.error("Erreur : " + err.message);
+    context.res = { status: 500, body: { error: err.message } };
   }
 };
