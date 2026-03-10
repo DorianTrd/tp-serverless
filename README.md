@@ -143,6 +143,7 @@ Invoke-RestMethod -Method Post -Uri "http://localhost:7071/api/upload" `
 ```
 
 Résultat attendu dans les logs `func start` :
+
 ![alt text](/images/image.png)
 
 ![alt text](/images/image-1.png)
