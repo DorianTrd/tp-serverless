@@ -4,7 +4,7 @@
 # Script de setup AWS LocalStack - TP Serverless
 # ============================================================
 
-ENDPOINT="http://localhost:4566"
+ENDPOINT="http://host.docker.internal:4566"
 REGION="eu-west-1"
 ACCOUNT_ID="000000000000"
 BUCKET_NAME="mon-bucket-tp"
