@@ -1,0 +1,10 @@
+{
+  "name": "process-function",
+  "version": "1.0.0",
+  "description": "Lambda déclenchée par S3, écrit dans DynamoDB",
+  "main": "index.js",
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.1005.0",
+    "@aws-sdk/client-s3": "^3.1005.0"
+  }
+}

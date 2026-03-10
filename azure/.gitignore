@@ -1,0 +1,6 @@
+node_modules/
+.azurite/
+azurite-data/
+azurite-debug.log
+dist/
+.env

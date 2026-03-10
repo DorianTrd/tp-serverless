@@ -1,0 +1,17 @@
+version: "3.8"
+
+services:
+  localstack:
+    image: localstack/localstack:latest
+    container_name: localstack-tp
+    ports:
+      - "4566:4566"
+    environment:
+      - SERVICES=s3,lambda,dynamodb
+      - DEFAULT_REGION=eu-west-1
+      - DEBUG=1
+      - LAMBDA_EXECUTOR=docker
+      - DOCKER_HOST=unix:///var/run/docker.sock
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock"
+      - "./localstack-data:/var/lib/localstack"
